@@ -3,11 +3,17 @@
   <head>
     <meta charset="utf-8">
     <title>AR.js Marker Physics Demo</title>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <!-- 物理エンジン -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+    <!-- Cannon.js 物理エンジン -->
+    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+
+    <!-- A-Frame physics system -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+
     <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+
     <style>
       body, html { margin: 0; padding: 0; overflow: hidden; }
       .hint { position: fixed; left: 50%; transform: translateX(-50%);
@@ -22,8 +28,8 @@
       physics="debug: false; gravity: 0 -9.8 0"
     >
       <!-- マーカー -->
-      <a-marker type="pattern" preset="hiro" id="marker">
-        <!-- 地面（床） -->
+      <a-marker preset="hiro" id="marker">
+        <!-- 床 -->
         <a-box id="floor"
                position="0 0 0"
                depth="4" height="0.1" width="4"
@@ -31,33 +37,31 @@
                static-body>
         </a-box>
 
-        <!-- 転がる球 -->
+        <!-- 球 -->
         <a-sphere id="ball"
-                  position="0 1 0"
+                  position="0 0.8 0"
                   radius="0.3"
                   color="#EF2D5E"
                   dynamic-body>
         </a-sphere>
       </a-marker>
 
-      <!-- カメラ -->
       <a-entity camera></a-entity>
     </a-scene>
 
     <div class="hint">マーカーを傾けてみてください！</div>
 
     <script>
-      // 毎フレーム、マーカーの傾きを読み取って重力方向を更新する
       AFRAME.registerComponent('tilt-gravity', {
         tick: function () {
+          const sceneEl = this.el;
           const marker = document.querySelector('#marker');
-          const sceneEl = document.querySelector('a-scene');
-          const worldQuat = marker.object3D.quaternion; // マーカーの向き
+          if (!sceneEl.systems.physics?.driver?.world) return; // 安全チェック
 
-          // マーカーの「上方向」を取得
+          const worldQuat = marker.object3D.quaternion;
           const up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuat);
 
-          // その逆方向に重力ベクトルを設定（傾けた方向へ転がる）
+          // 重力方向を変更
           sceneEl.systems.physics.driver.world.gravity.set(
             -up.x * 9.8,
             -up.y * 9.8,
@@ -66,7 +70,6 @@
         }
       });
 
-      // コンポーネントをシーンに追加
       document.querySelector('a-scene').setAttribute('tilt-gravity', '');
     </script>
   </body>
