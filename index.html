@@ -1,56 +1,73 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AR.js Marker Example</title>
-
-    <!-- A-Frame 本体 -->
+    <meta charset="utf-8">
+    <title>AR.js Marker Physics Demo</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-
-    <!-- AR.js for A-Frame (CDN) -->
+    <!-- 物理エンジン -->
+    <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+    <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
-
     <style>
-      body, html {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-      .hint {
-        position: fixed;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: 12px;
-        background: rgba(0,0,0,.6);
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 8px;
-        font-size: 14px;
-      }
+      body, html { margin: 0; padding: 0; overflow: hidden; }
+      .hint { position: fixed; left: 50%; transform: translateX(-50%);
+              bottom: 12px; background: rgba(0,0,0,.6); color: #fff;
+              padding: 6px 10px; border-radius: 8px; font-size: 14px; }
     </style>
   </head>
-
   <body>
-    <!-- カメラを有効にしてARを起動 -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-      
-      <!-- HIROマーカーを使用 -->
-      <a-marker preset="hiro">
-        <a-box position="0 0.5 0" depth="1" height="1" width="1" color="#4CC3D9"></a-box>
-        <a-sphere position="1 1 0" radius="0.5" color="#EF2D5E"></a-sphere>
-          <!-- 回転する球 -->
-  <a-sphere position="0 1 0" radius="0.5" color="#EF2D5E"
-            animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
-  </a-sphere>
-        <a-text value="Hello AR.js" position="-0.8 1.8 0" color="#fff"></a-text>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam;"
+      physics="debug: false; gravity: 0 -9.8 0"
+    >
+      <!-- マーカー -->
+      <a-marker type="pattern" preset="hiro" id="marker">
+        <!-- 地面（床） -->
+        <a-box id="floor"
+               position="0 0 0"
+               depth="4" height="0.1" width="4"
+               color="#7BC8A4"
+               static-body>
+        </a-box>
+
+        <!-- 転がる球 -->
+        <a-sphere id="ball"
+                  position="0 1 0"
+                  radius="0.3"
+                  color="#EF2D5E"
+                  dynamic-body>
+        </a-sphere>
       </a-marker>
 
       <!-- カメラ -->
       <a-entity camera></a-entity>
-
     </a-scene>
 
-    <div class="hint">マーカー（HIRO）をかざしてみてください</div>
+    <div class="hint">マーカーを傾けてみてください！</div>
+
+    <script>
+      // 毎フレーム、マーカーの傾きを読み取って重力方向を更新する
+      AFRAME.registerComponent('tilt-gravity', {
+        tick: function () {
+          const marker = document.querySelector('#marker');
+          const sceneEl = document.querySelector('a-scene');
+          const worldQuat = marker.object3D.quaternion; // マーカーの向き
+
+          // マーカーの「上方向」を取得
+          const up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuat);
+
+          // その逆方向に重力ベクトルを設定（傾けた方向へ転がる）
+          sceneEl.systems.physics.driver.world.gravity.set(
+            -up.x * 9.8,
+            -up.y * 9.8,
+            -up.z * 9.8
+          );
+        }
+      });
+
+      // コンポーネントをシーンに追加
+      document.querySelector('a-scene').setAttribute('tilt-gravity', '');
+    </script>
   </body>
 </html>
