@@ -1,145 +1,73 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <title>AR.js Mini Golf Demo ✅</title>
+  <head>
+    <meta charset="utf-8" />
+    <title>AR.js Jack-in-the-Box 🎁</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+    <style>
+      body, html { margin: 0; overflow: hidden; background: black; }
+    </style>
+  </head>
 
-        <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+  <body>
+    <a-scene embedded arjs="sourceType: webcam;">
+      <!-- マーカー -->
+      <a-marker preset="hiro" id="marker">
+        <!-- 箱の本体 -->
+        <a-box id="box"
+               position="0 0 0"
+               depth="1" height="0.6" width="1"
+               color="#8B4513"
+               material="roughness:0.8; metalness:0.2;">
+        </a-box>
 
-    <style>
-      body, html { margin: 0; padding: 0; overflow: hidden; }
-      .hint {
-        position: fixed;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.6);
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 8px;
-        font-size: 14px;
-      }
-      .message {
-        position: fixed;
-        top: 40%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 40px;
-        font-weight: bold;
-        color: #00ff80;
-        text-shadow: 2px 2px 6px black;
-        display: none;
-      }
-    </style>
-  </head>
+        <!-- フタ（アニメーションで開く） -->
+        <a-box id="lid"
+               position="0 0.3 0.5"
+               depth="1" height="0.05" width="1"
+               color="#A0522D"
+               rotation="0 0 0"
+               animation__open="property: rotation; to: -120 0 0; dur: 1200; easing: easeOutCubic; startEvents: openLid;">
+        </a-box>
 
-  <body>
-        <a-scene
-      embedded
-      arjs="sourceType: webcam;"
-      physics="debug: false; gravity: 0 -9.8 0"
-      vr-mode-ui="enabled: false"
-    >
-            <a-marker preset="hiro" id="marker">
-                <a-box id="floor"
-          position="0 0 0"
-          depth="4" height="0.1" width="4"
-          color="#3FAF3F"
-          static-body="friction: 0.6; restitution: 0.1;">
-        </a-box>
+        <!-- 中身（びっくりキャラ） -->
+        <a-sphere id="toy"
+                  position="0 0.4 0"
+                  radius="0.15"
+                  color="#FFD700"
+                  visible="false"
+                  animation__pop="property: position; to: 0 1.4 0; dur: 800; easing: easeOutElastic; startEvents: popOut;">
+        </a-sphere>
+      </a-marker>
 
-                <a-box position="0 0.5 -2" depth="0.1" height="1" width="4" color="#2E8B57" static-body></a-box>
-        <a-box position="0 0.5 2" depth="0.1" height="1" width="4" color="#2E8B57" static-body></a-box>
-        <a-box position="-2 0.5 0" depth="4" height="1" width="0.1" color="#2E8B57" static-body></a-box>
-        <a-box position="2 0.5 0" depth="4" height="1" width="0.1" color="#2E8B57" static-body></a-box>
+      <a-entity camera></a-entity>
+    </a-scene>
 
-                <a-cylinder id="hole"
-          position="1.2 0.05 1.2"
-          radius="0.25" height="0.1"
-          color="black"
-          static-body>
-        </a-cylinder>
+    <script>
+      const marker = document.querySelector('#marker');
+      const lid = document.querySelector('#lid');
+      const toy = document.querySelector('#toy');
 
-                <a-sphere id="ball"
-          position="0 0.5 0"
-          radius="0.25"
-          color="#EF2D5E"
-          dynamic-body="mass:1; linearDamping: 0.5; angularDamping: 0.5; friction: 0.6; restitution: 0.1;">
-        </a-sphere>
-      </a-marker>
+      // マーカーが見つかったら、数秒後にフタが開いて中身が飛び出す
+      marker.addEventListener('markerFound', () => {
+        console.log("📸 Marker detected! Starting box animation...");
+        setTimeout(() => {
+          lid.emit('openLid');
+        }, 1000); // 1秒後にフタオープン
 
-      <a-entity camera></a-entity>
-    </a-scene>
+        setTimeout(() => {
+          toy.setAttribute('visible', true);
+          toy.emit('popOut');
+        }, 1800); // 1.8秒後に飛び出し
+      });
 
-    <div class="hint">スマホを傾けてボールを転がそう！</div>
-    <div class="message" id="message">🎉 Congratulations!! 🎉</div>
-
-    <script>
-      // --- iOSでセンサー許可を求める ---
-      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        document.body.addEventListener('click', () => {
-          DeviceOrientationEvent.requestPermission();
-        });
-      }
-
-      // --- スマホの傾きで重力を更新 ---
-      window.addEventListener('deviceorientation', (event) => {
-        const { beta, gamma } = event; // beta: 前後, gamma: 左右
-        const sceneEl = document.querySelector('a-scene');
-        // physicsシステムがロード済みか確認
-        const world = sceneEl.systems.physics?.driver?.world; 
-        if (!world) return;
-
-        // 転がりやすさのため倍率を少し上げる (45度傾けたときに最大重力になるよう調整)
-        const gx = (gamma / 45) * 9.8;
-        const gz = (beta / 45) * 9.8;
-
-        // X-Z平面の重力のみを更新し、Y軸は常に下向き (-9.8) を維持する
-        world.gravity.set(gx, -9.8, gz);
-      });
-
-      // --- ゴール判定コンポーネント ---
-      AFRAME.registerComponent('goal-check', {
-        init: function() {
-          this.isGoal = false; // ゴール状態を保持するフラグ
-        },
-        tick: function () {
-          if (this.isGoal) return; // すでにゴールしていたら処理をスキップ
-          
-          const ball = document.querySelector('#ball');
-          const hole = document.querySelector('#hole');
-          const floor = document.querySelector('#floor'); // 床を取得
-          const msg = document.querySelector('#message');
-          if (!ball || !hole || !floor) return;
-
-          const bPos = ball.object3D.position;
-          const hPos = hole.object3D.position;
-          
-          // 2次元の距離を計算 (Y軸を無視)
-          const distSq = (bPos.x - hPos.x)**2 + (bPos.z - hPos.z)**2;
-          const dist = Math.sqrt(distSq);
-
-          // 穴の半径 (0.25) に近づいたら
-          if (dist < 0.25) {
-            // 1. 床の物理体(static-body)を無効化し、ボールが落ちるようにする
-            floor.removeAttribute('static-body');
-            
-            // 2. ボールが床の厚さ以下（y座標が十分に低い）まで落ちたらゴールと判定
-            if (bPos.y < 0.05) { 
-              this.isGoal = true;
-              msg.style.display = 'block';
-              
-              // ゴール後、ボールの動きを止める
-              ball.body.velocity.set(0, 0, 0);
-              ball.body.angularVelocity.set(0, 0, 0);
-            }
-          }
-        }
-      });
-      document.querySelector('a-scene').setAttribute('goal-check', '');
-    </script>
-  </body>
+      // マーカーを見失ったらリセット
+      marker.addEventListener('markerLost', () => {
+        toy.setAttribute('visible', false);
+        lid.setAttribute('rotation', '0 0 0');
+        toy.setAttribute('position', '0 0.4 0');
+      });
+    </script>
+  </body>
 </html>
