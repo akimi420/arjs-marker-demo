@@ -2,127 +2,80 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8">
-    <title>AR.js Mini Golf Demo</title>
+    <title>AR.js Mini Golf Demo (Device Tilt)</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-    <!-- Cannon.js -->
     <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
-
-    <!-- 物理エンジン -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
-
-    <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
 
     <style>
       body, html { margin: 0; padding: 0; overflow: hidden; }
       .hint {
-        position: fixed;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: 12px;
-        background: rgba(0,0,0,.6);
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 8px;
-        font-size: 14px;
+        position: fixed; left: 50%; transform: translateX(-50%);
+        bottom: 12px; background: rgba(0,0,0,.6); color: #fff;
+        padding: 6px 10px; border-radius: 8px; font-size: 14px;
       }
       .message {
-        position: fixed;
-        top: 40%;
-        left: 50%;
+        position: fixed; top: 40%; left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 40px;
-        font-weight: bold;
-        color: #00ff80;
-        display: none;
-        text-shadow: 2px 2px 6px black;
+        font-size: 40px; font-weight: bold; color: #00ff80;
+        display: none; text-shadow: 2px 2px 6px black;
       }
     </style>
   </head>
-
   <body>
-    <a-scene
-      embedded
-      arjs="sourceType: webcam;"
-      physics="debug: false; gravity: 0 -9.8 0"
-    >
+    <a-scene embedded arjs="sourceType: webcam;" physics="debug: false; gravity: 0 -9.8 0">
       <a-marker preset="hiro" id="marker">
-        <!-- 床 -->
-        <a-box id="floor"
-               position="0 0 0"
-               depth="4" height="0.1" width="4"
-               color="#3FAF3F"
-               static-body></a-box>
+        <!-- 地面 -->
+        <a-box id="floor" position="0 0 0" depth="4" height="0.1" width="4" color="#3FAF3F" static-body></a-box>
 
-        <!-- 壁（4辺） -->
+        <!-- 壁 -->
         <a-box position="0 0.5 -2" depth="0.1" height="1" width="4" color="#2E8B57" static-body></a-box>
         <a-box position="0 0.5 2" depth="0.1" height="1" width="4" color="#2E8B57" static-body></a-box>
         <a-box position="-2 0.5 0" depth="4" height="1" width="0.1" color="#2E8B57" static-body></a-box>
         <a-box position="2 0.5 0" depth="4" height="1" width="0.1" color="#2E8B57" static-body></a-box>
 
         <!-- 穴 -->
-        <a-cylinder id="hole"
-                    position="1.2 0.05 1.2"
-                    radius="0.25" height="0.1"
-                    color="black"
-                    static-body></a-cylinder>
+        <a-cylinder id="hole" position="1.2 0.05 1.2" radius="0.25" height="0.1" color="black" static-body></a-cylinder>
 
-        <!-- 球 -->
-        <a-sphere id="ball"
-                  position="0 0.8 0"
-                  radius="0.25"
-                  color="#EF2D5E"
-                  dynamic-body></a-sphere>
+        <!-- ボール -->
+        <a-sphere id="ball" position="0 0.8 0" radius="0.25" color="#EF2D5E" dynamic-body></a-sphere>
       </a-marker>
-
       <a-entity camera></a-entity>
     </a-scene>
 
-    <div class="hint">マーカーを傾けて、ボールを穴に入れよう！</div>
+    <div class="hint">スマホを傾けてボールを転がそう！</div>
     <div class="message" id="message">🎉 Congratulations!! 🎉</div>
 
     <script>
-      // ---- 傾きで重力を変化 ----
-      AFRAME.registerComponent('tilt-gravity', {
-        tick: function () {
-          const sceneEl = this.el;
-          const marker = document.querySelector('#marker');
-          if (!sceneEl.systems.physics?.driver?.world) return;
-          const worldQuat = marker.object3D.quaternion;
-          const up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuat);
+      // スマホの傾きで重力方向を変更
+      window.addEventListener('deviceorientation', (event) => {
+        const { beta, gamma } = event; // beta: 前後の傾き, gamma: 左右の傾き
+        const sceneEl = document.querySelector('a-scene');
+        if (!sceneEl.systems.physics?.driver?.world) return;
 
-          sceneEl.systems.physics.driver.world.gravity.set(
-            -up.x * 9.8,
-            -up.y * 9.8,
-            -up.z * 9.8
-          );
-        }
+        // スマホの傾きを重力方向に変換
+        const gx = (gamma / 90) * 9.8;
+        const gz = (beta / 90) * 9.8;
+
+        sceneEl.systems.physics.driver.world.gravity.set(gx, -9.8, gz);
       });
 
-      document.querySelector('a-scene').setAttribute('tilt-gravity', '');
-
-      // ---- ゴール判定 ----
+      // ゴール判定
       AFRAME.registerComponent('goal-check', {
         tick: function () {
           const ball = document.querySelector('#ball');
           const hole = document.querySelector('#hole');
           const msg = document.querySelector('#message');
-
           if (!ball || !hole) return;
-
-          // 球と穴の距離を計算
           const bPos = ball.object3D.position;
           const hPos = hole.object3D.position;
           const dist = bPos.distanceTo(hPos);
-
-          // 球が穴に入った判定
           if (dist < 0.25 && bPos.y < 0.3) {
             msg.style.display = 'block';
           }
         }
       });
-
       document.querySelector('a-scene').setAttribute('goal-check', '');
     </script>
   </body>
